@@ -44,13 +44,21 @@ public final class EventTapMonitor {
     private func pollMousePosition() {
         // NSEvent.mouseLocation is in NS coordinates (origin bottom-left)
         let mouseNS = NSEvent.mouseLocation
-        guard let screen = screenForNSPoint(mouseNS) else {
+        let screens = NSScreen.screens
+        // Expand by 1pt to include screen edges (NSRect.contains uses half-open intervals).
+        guard let screen = screens.first(where: {
+            $0.frame.insetBy(dx: -1, dy: -1).contains(mouseNS)
+        }) else {
             return
         }
 
         // Convert to distance from top of screen
-        let screenTopNS = screen.frame.origin.y + screen.frame.height
-        let distanceFromTop = screenTopNS - mouseNS.y
+        let distanceFromTop = Self.distanceFromTop(
+            mouseNS, currentScreen: screen.frame,
+            screens: screens.lazy.map { $0.frame },
+            isHidden: stateMachine.state == .hidden,
+            triggerZone: stateMachine.triggerZone
+        )
 
         pollCount += 1
         if distanceFromTop < 60 || pollCount <= 3 || pollCount % 1000 == 0 {
@@ -68,15 +76,16 @@ public final class EventTapMonitor {
         stateMachine.handleMousePosition(distanceFromTop: distanceFromTop)
     }
 
-    // MARK: - Screen geometry helpers
-
-    private func screenForNSPoint(_ nsPoint: NSPoint) -> NSScreen? {
-        for screen in NSScreen.screens {
-            // Expand by 1px to include screen edges (NSRect.contains uses half-open intervals)
-            if screen.frame.insetBy(dx: -1, dy: -1).contains(nsPoint) {
-                return screen
-            }
-        }
-        return nil
+    static func distanceFromTop<S: Sequence>(
+        _ point: NSPoint, currentScreen: NSRect, screens: S,
+        isHidden: Bool, triggerZone: CGFloat
+    ) -> CGFloat where S.Element == NSRect {
+        let distance = currentScreen.maxY - point.y
+        // ponytail: reuse triggerZone as seam tolerance; split knobs only if needed.
+        guard isHidden, screens.contains(where: { frame in
+            frame.minX <= point.x && point.x < frame.maxX &&
+            frame.maxY <= point.y && point.y - frame.maxY <= triggerZone
+        }) else { return distance }
+        return 0
     }
 }
