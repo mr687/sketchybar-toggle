@@ -1,5 +1,5 @@
-import Foundation
 import AppKit
+import Foundation
 import SketchyBarToggleCore
 
 let version = "0.5.0"
@@ -44,6 +44,7 @@ let controller = SketchyBarController(yOffset: config.yOffset)
 let stateMachine = BarStateMachine(
     controller: controller,
     triggerZone: config.triggerZone,
+    untriggerZone: config.untriggerZone,
     menuBarHeight: config.menuBarHeight,
     debounceInterval: config.debounce
 )
@@ -73,7 +74,9 @@ if config.debug || ProcessInfo.processInfo.environment["SKETCHYBAR_TOGGLE_DEBUG"
         debugLogFile?.write(line.data(using: .utf8) ?? Data())
     }
     let yOffStr = config.yOffset.map { "\(Int($0))" } ?? "default"
-    debugLog?("started with trigger=\(Int(config.triggerZone)) menuBar=\(Int(config.menuBarHeight)) debounce=\(Int(config.debounce * 1000))ms yOffset=\(yOffStr)")
+    debugLog?(
+        "started with trigger=\(Int(config.triggerZone)) untrigger=\(Int(config.untriggerZone)) menuBar=\(Int(config.menuBarHeight)) debounce=\(Int(config.debounce * 1000))ms yOffset=\(yOffStr)"
+    )
 } else {
     debugLog = nil
 }
@@ -82,7 +85,9 @@ let monitor = EventTapMonitor(stateMachine: stateMachine, debugLog: debugLog)
 monitor.start()
 
 let yOffStr = config.yOffset.map { "\(Int($0))px" } ?? "default"
-print("sketchybar-toggle v\(version) running (trigger: \(Int(config.triggerZone))px, menu bar: \(Int(config.menuBarHeight))px, debounce: \(Int(config.debounce * 1000))ms, y_offset: \(yOffStr))")
+print(
+    "sketchybar-toggle v\(version) running (trigger: \(Int(config.triggerZone))px, untrigger: \(Int(config.untriggerZone))px, menu bar: \(Int(config.menuBarHeight))px, debounce: \(Int(config.debounce * 1000))ms, y_offset: \(yOffStr))"
+)
 if config.debug { print("Debug logging to /tmp/sketchybar-toggle-debug.log") }
 print("Press Ctrl+C to stop.")
 
@@ -107,20 +112,22 @@ app.run()
 // MARK: - Helpers
 
 func printUsage() {
-    print("""
-    Usage: sketchybar-toggle [options]
+    print(
+        """
+        Usage: sketchybar-toggle [options]
 
-    Options:
-      --trigger-zone <px>       Pixels from top of screen to trigger hide (default: 10)
-      --menu-bar-height <px>    Pixels from top defining menu bar zone (default: 50)
-      --y-offset <px>           Y-offset for the SketchyBar position (default: unset — uses 0)
-      --debounce <ms>           Debounce delay in milliseconds (default: 150)
-      --check-permissions       Check permissions (no longer needed in v0.4.0+)
-      --setup                   Check prerequisites and show auto-start instructions
-      --debug                   Log events to /tmp/sketchybar-toggle-debug.log
-      --version                 Print version and exit
-      --help, -h                Show this help
-    """)
+        Options:
+          --trigger-zone <px>       Pixels from top of screen to trigger hide (default: 10)
+          --untrigger-zone <px>     Pixels from top a click must clear to restore the bar (default: 30)
+          --menu-bar-height <px>    Pixels from top defining menu bar zone (default: 50)
+          --y-offset <px>           Y-offset for the SketchyBar position (default: unset — uses 0)
+          --debounce <ms>           Debounce delay in milliseconds (default: 150)
+          --check-permissions       Check permissions (no longer needed in v0.4.0+)
+          --setup                   Check prerequisites and show auto-start instructions
+          --debug                   Log events to /tmp/sketchybar-toggle-debug.log
+          --version                 Print version and exit
+          --help, -h                Show this help
+        """)
 }
 
 func runSetup() {
@@ -157,7 +164,9 @@ func runSetup() {
         print("  [ok] macOS menu bar auto-hide is enabled")
     } else {
         print("  [!!] macOS menu bar auto-hide is not enabled")
-        print("       Set it in System Settings > Control Center > Automatically hide and show the menu bar")
+        print(
+            "       Set it in System Settings > Control Center > Automatically hide and show the menu bar"
+        )
         print("       After changing, run: killall Dock")
     }
 
@@ -182,7 +191,9 @@ func runSetup() {
         printSetupInstructions(configFile: sketchybarrc, format: .shell)
     } else {
         print("Could not find SketchyBar config at \(configDir.path)/")
-        print("See the README for manual setup: https://github.com/malpern/sketchybar-toggle#auto-start")
+        print(
+            "See the README for manual setup: https://github.com/malpern/sketchybar-toggle#auto-start"
+        )
     }
 }
 
@@ -196,7 +207,8 @@ func printSetupInstructions(configFile: URL, format: ConfigFormat) {
     print("Found SketchyBar \(formatName) config at \(configFile.path)")
 
     if let contents = try? String(contentsOfFile: configFile.path, encoding: .utf8),
-       contents.contains("sketchybar-toggle") {
+        contents.contains("sketchybar-toggle")
+    {
         print("sketchybar-toggle is already configured to auto-start. No changes needed.")
         return
     }
